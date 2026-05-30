@@ -1,16 +1,30 @@
-export default function PreferencesPage() {
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import { getDislikes, getAllergens } from '@/lib/db/user'
+import { getPackageOverrides } from '@/lib/db/ingredients'
+import { loadCatalog } from '@/lib/data/catalog'
+import { PreferencesClient } from './preferences-client'
+
+// Preferences: dislikes, allergens, and per-user package size overrides.
+// Server component fetches in parallel; the client handles interactions.
+export default async function PreferencesPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const [dislikes, allergens, overrides, catalog] = await Promise.all([
+    getDislikes(supabase, user.id),
+    getAllergens(supabase, user.id),
+    getPackageOverrides(supabase, user.id),
+    loadCatalog(supabase, user.id)
+  ])
+
   return (
-    <div className="page">
-      <div className="hero hero-centered">
-        <div>
-          <div className="eyebrow">Coming soon</div>
-          <h1>Preferences <span className="accent">page</span></h1>
-          <p className="hero-sub">
-            Being ported from the desktop app. Lands in the next update.
-            For now, head to <em>The Week</em> to plan dinners.
-          </p>
-        </div>
-      </div>
-    </div>
+    <PreferencesClient
+      dislikes={dislikes}
+      allergens={allergens}
+      overrides={overrides}
+      catalog={catalog}
+    />
   )
 }

@@ -3,6 +3,11 @@ import type { Ingredient } from '../types'
 // The catalog of things you can buy. Package sizes matter A LOT for waste
 // calculation — a recipe needing 1/2 onion still means buying a whole onion.
 // These are typical US grocery store sizes; tune for your area.
+//
+// `density` (g/ml) is set on ingredients where recipes commonly mix volume
+// and weight units (a recipe says "1 cup flour"; the catalog package is in lb;
+// we need density to do the math). Values are standard cooking densities
+// rounded to 2 decimals — accurate enough for grocery rounding.
 
 export const INGREDIENTS: Record<string, Ingredient> = {
   // PRODUCE
@@ -43,16 +48,25 @@ export const INGREDIENTS: Record<string, Ingredient> = {
 
   // DAIRY
   'eggs': { id: 'eggs', name: 'Eggs (large)', aisle: 'dairy', packageSize: 12, packageUnit: 'whole', packageLabel: '1 dozen' , allergens: ['egg'] },
-  'milk': { id: 'milk', name: 'Milk (whole)', aisle: 'dairy', packageSize: 1, packageUnit: 'l', packageLabel: '1 quart (~1 L)' , allergens: ['dairy'] },
-  'butter': { id: 'butter', name: 'Butter', aisle: 'dairy', packageSize: 16, packageUnit: 'tbsp', packageLabel: '1 stick (8 tbsp) — sold in 4-stick boxes' , allergens: ['dairy'] },
+  'milk': { id: 'milk', name: 'Milk (whole)', aisle: 'dairy', packageSize: 1, packageUnit: 'l', packageLabel: '1 quart (~1 L)' , allergens: ['dairy'], density: 1.03 },
+  'butter': { id: 'butter', name: 'Butter', aisle: 'dairy', packageSize: 16, packageUnit: 'tbsp', packageLabel: '1 stick (8 tbsp) — sold in 4-stick boxes' , allergens: ['dairy'], density: 0.91 },
   'parmesan': { id: 'parmesan', name: 'Parmesan cheese', aisle: 'dairy', packageSize: 5, packageUnit: 'oz', packageLabel: '5 oz wedge' , allergens: ['dairy'] },
   'feta': { id: 'feta', name: 'Feta cheese', aisle: 'dairy', packageSize: 6, packageUnit: 'oz', packageLabel: '6 oz block' , allergens: ['dairy'] },
   'mozzarella': { id: 'mozzarella', name: 'Mozzarella (shredded)', aisle: 'dairy', packageSize: 8, packageUnit: 'oz', packageLabel: '8 oz bag' , allergens: ['dairy'] },
+  'cream-cheese': { id: 'cream-cheese', name: 'Cream cheese', aisle: 'dairy', packageSize: 8, packageUnit: 'oz', packageLabel: '8 oz block', allergens: ['dairy'] },
+  'sour-cream': { id: 'sour-cream', name: 'Sour cream', aisle: 'dairy', packageSize: 16, packageUnit: 'oz', packageLabel: '16 oz tub', allergens: ['dairy'], density: 0.96 },
   'greek-yogurt': { id: 'greek-yogurt', name: 'Greek yogurt (plain)', aisle: 'dairy', packageSize: 32, packageUnit: 'oz', packageLabel: '32 oz tub' , allergens: ['dairy'] },
-  'heavy-cream': { id: 'heavy-cream', name: 'Heavy cream', aisle: 'dairy', packageSize: 1, packageUnit: 'cup', packageLabel: '1 pint' , allergens: ['dairy'] },
+  'heavy-cream': { id: 'heavy-cream', name: 'Heavy cream', aisle: 'dairy', packageSize: 1, packageUnit: 'cup', packageLabel: '1 pint' , allergens: ['dairy'], density: 0.99 },
 
   // PANTRY
-  'olive-oil': { id: 'olive-oil', name: 'Olive oil', aisle: 'pantry', packageSize: 500, packageUnit: 'ml', packageLabel: '500 ml bottle' },
+  'olive-oil': { id: 'olive-oil', name: 'Olive oil', aisle: 'pantry', packageSize: 500, packageUnit: 'ml', packageLabel: '500 ml bottle', density: 0.92 },
+  'vegetable-oil': { id: 'vegetable-oil', name: 'Vegetable oil', aisle: 'pantry', packageSize: 48, packageUnit: 'fl_oz', packageLabel: '48 fl oz bottle', density: 0.92 },
+  'all-purpose-flour': { id: 'all-purpose-flour', name: 'All-purpose flour', aisle: 'pantry', packageSize: 5, packageUnit: 'lb', packageLabel: '5 lb bag', allergens: ['gluten'], density: 0.53 },
+  'granulated-sugar': { id: 'granulated-sugar', name: 'Granulated sugar', aisle: 'pantry', packageSize: 4, packageUnit: 'lb', packageLabel: '4 lb bag', density: 0.85 },
+  'brown-sugar': { id: 'brown-sugar', name: 'Brown sugar (light, packed)', aisle: 'pantry', packageSize: 2, packageUnit: 'lb', packageLabel: '2 lb bag', density: 0.90 },
+  'honey': { id: 'honey', name: 'Honey', aisle: 'pantry', packageSize: 12, packageUnit: 'oz', packageLabel: '12 oz bottle', density: 1.42 },
+  'mayonnaise': { id: 'mayonnaise', name: 'Mayonnaise', aisle: 'condiments', packageSize: 30, packageUnit: 'fl_oz', packageLabel: '30 fl oz jar', density: 0.91, allergens: ['egg'] },
+  'water': { id: 'water', name: 'Water', aisle: 'pantry', packageSize: 1, packageUnit: 'gal', packageLabel: '1 gallon', density: 1.00 },
   'pasta': { id: 'pasta', name: 'Pasta (penne)', aisle: 'pantry', packageSize: 1, packageUnit: 'lb', packageLabel: '1 lb box' , allergens: ['gluten'] },
   'rice': { id: 'rice', name: 'Long-grain rice', aisle: 'pantry', packageSize: 2, packageUnit: 'lb', packageLabel: '2 lb bag' },
   'quinoa': { id: 'quinoa', name: 'Quinoa', aisle: 'pantry', packageSize: 1, packageUnit: 'lb', packageLabel: '1 lb bag' },
@@ -72,7 +86,7 @@ export const INGREDIENTS: Record<string, Ingredient> = {
   'corn-tortillas': { id: 'corn-tortillas', name: 'Corn tortillas', aisle: 'bakery', packageSize: 12, packageUnit: 'whole', packageLabel: '12-pack' },
 
   // SPICES (these last forever; we treat them as pantry staples but still track)
-  'salt': { id: 'salt', name: 'Kosher salt', aisle: 'spices', packageSize: 16, packageUnit: 'oz', packageLabel: '1 lb box' },
+  'salt': { id: 'salt', name: 'Kosher salt', aisle: 'spices', packageSize: 16, packageUnit: 'oz', packageLabel: '1 lb box', density: 1.20 },
   'black-pepper': { id: 'black-pepper', name: 'Black pepper', aisle: 'spices', packageSize: 2, packageUnit: 'oz', packageLabel: '2 oz jar' },
   'cumin': { id: 'cumin', name: 'Cumin', aisle: 'spices', packageSize: 2, packageUnit: 'oz', packageLabel: '2 oz jar' },
   'paprika': { id: 'paprika', name: 'Paprika', aisle: 'spices', packageSize: 2, packageUnit: 'oz', packageLabel: '2 oz jar' },

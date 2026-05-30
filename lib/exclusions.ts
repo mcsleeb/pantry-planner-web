@@ -1,4 +1,4 @@
-import type { Allergen, Recipe } from './types'
+import type { Allergen, Ingredient, Recipe } from './types'
 import { INGREDIENTS } from './data/ingredients'
 
 // =============================================================================
@@ -12,7 +12,14 @@ import { INGREDIENTS } from './data/ingredients'
 //
 // Both work the same way under the hood: a recipe is rejected if ANY
 // of its ingredients matches the exclusion.
+//
+// CATALOG: every function takes an optional `catalog` argument. It defaults
+// to the static base catalog so existing callers keep working unchanged.
+// Callers that support custom ingredients pass the merged per-user catalog
+// (see lib/data/catalog.ts → loadCatalog).
 // =============================================================================
+
+type Catalog = Record<string, Ingredient>
 
 export interface ExclusionContext {
   /** Ingredient ids to exclude (dislikes) */
@@ -35,14 +42,15 @@ export type ExclusionReason =
 
 export function checkExclusions(
   recipe: Recipe,
-  ctx: ExclusionContext
+  ctx: ExclusionContext,
+  catalog: Catalog = INGREDIENTS
 ): ExclusionResult {
   const reasons: ExclusionReason[] = []
   const dislikes = new Set(ctx.dislikes ?? [])
   const allergenSet = new Set(ctx.allergens ?? [])
 
   for (const ri of recipe.ingredients) {
-    const ing = INGREDIENTS[ri.ingredientId]
+    const ing = catalog[ri.ingredientId]
     if (!ing) continue
 
     if (dislikes.has(ri.ingredientId)) {
@@ -75,10 +83,13 @@ export function checkExclusions(
 }
 
 /** Returns the subset of allergens this recipe contains, even when allergens isn't filtering. */
-export function recipeAllergens(recipe: Recipe): Allergen[] {
+export function recipeAllergens(
+  recipe: Recipe,
+  catalog: Catalog = INGREDIENTS
+): Allergen[] {
   const set = new Set<Allergen>()
   for (const ri of recipe.ingredients) {
-    const ing = INGREDIENTS[ri.ingredientId]
+    const ing = catalog[ri.ingredientId]
     if (!ing?.allergens) continue
     for (const a of ing.allergens) set.add(a)
   }

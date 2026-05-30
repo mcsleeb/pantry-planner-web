@@ -98,6 +98,18 @@ export async function removePantryItem(
   return !error
 }
 
+/** Remove every pantry item for the user. */
+export async function clearPantry(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('pantry_items')
+    .delete()
+    .eq('user_id', userId)
+  return !error
+}
+
 // =============================================================================
 //  PREFERENCES (dislikes & allergens)
 // =============================================================================

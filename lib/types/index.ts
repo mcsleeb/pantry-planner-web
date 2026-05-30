@@ -46,8 +46,9 @@ export const ALLERGEN_LABELS: Record<Allergen, string> = {
 }
 
 // Units we know how to convert between.
-// Volume and weight are intentionally separate — converting between them
-// requires density, which we don't track. The consolidator handles this safely.
+// Volume and weight live in separate families — converting between them
+// requires per-ingredient density (see Ingredient.density). Most ingredients
+// have no density, so cross-family conversion stays unavailable.
 export type Unit =
   // count
   | 'whole'
@@ -57,12 +58,18 @@ export type Unit =
   | 'kg'
   | 'oz'
   | 'lb'
-  // volume
+  // volume — metric
   | 'ml'
   | 'l'
+  // volume — US customary, by ascending size
+  | 'fl_dr'   // fluid dram (small; sometimes seen on bitters or extracts)
   | 'tsp'
   | 'tbsp'
+  | 'fl_oz'   // US fluid ounce (1 cup = 8 fl_oz)
   | 'cup'
+  | 'pt'      // pint (2 cups)
+  | 'qt'      // quart (4 cups)
+  | 'gal'     // gallon (16 cups)
 
 export interface Ingredient {
   id: string              // canonical id, e.g. "yellow-onion"
@@ -77,6 +84,19 @@ export interface Ingredient {
   // Most ingredients have none; only set this for ingredients in a major
   // allergen group.
   allergens?: Allergen[]
+  // Grams per milliliter — required to convert between volume and weight.
+  // Only set for ingredients where volume↔weight conversion is meaningful
+  // (e.g. flour, butter, honey). Approximate values are fine for grocery math.
+  density?: number
+  // True for user-created ingredients (id begins "user:"). Catalog items omit it.
+  isCustom?: boolean
+  // Nutrition — RESERVED for a future nutrition round. All optional, all on a
+  // per-100g basis. Not collected in the UI yet; defined here so adding
+  // nutrition later needs no type migration.
+  caloriesPer100g?: number
+  proteinPer100g?: number
+  carbsPer100g?: number
+  fatPer100g?: number
 }
 
 export interface RecipeIngredient {

@@ -704,8 +704,9 @@ body {
   text-transform: uppercase;
   padding: 3px 8px;
   border-radius: 4px;
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--paper-deep);
+  color: var(--ink-soft);
+  border: 1px solid var(--rule);
 }
 
 .diet-filter-bar {
@@ -724,7 +725,7 @@ body {
   color: var(--ink-soft);
   transition: all 0.15s;
 }
-.diet-chip.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.diet-chip.on { background: var(--paper-deep); color: var(--ink); border-color: var(--ink-mute); font-weight: 600;}
 .diet-chip:hover:not(.on) { background: var(--paper-deep); }
 
 /* ============================================================================
@@ -1345,4 +1346,793 @@ body {
 @media (max-width: 600px) {
   .landing-hero h1 { font-size: 52px; }
   .landing-hero .lead { font-size: 18px; }
+}
+/* ============================================================================
+   FOLDERS, SEARCH, TAG FILTERS — appended for Recipes v2
+   Paste at the end of app/globals.css.
+   ============================================================================ */
+
+/* ---- Search ---------------------------------------------------------------- */
+.recipe-search-row {
+  position: relative;
+  margin-bottom: var(--s-4);
+}
+.recipe-search {
+  width: 100%;
+  padding: 10px 36px 10px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper-card);
+  color: var(--ink);
+  font-size: 14px;
+  font-family: var(--body);
+  transition: border-color 0.15s, background 0.15s;
+}
+.recipe-search:focus {
+  outline: none;
+  border-color: var(--ink-soft);
+  background: var(--paper);
+}
+.recipe-search::placeholder {
+  color: var(--ink-mute);
+}
+.recipe-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--paper-deep);
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.recipe-search-clear:hover {
+  background: var(--ink-mute);
+  color: var(--paper);
+}
+
+/* ---- Tag filter bar (slightly muted vs diet chips) ------------------------- */
+.tag-filter-bar {
+  margin-bottom: var(--s-5);
+  /* override the diet-filter-bar bottom margin since they appear together */
+  margin-top: calc(-1 * var(--s-3));
+}
+.tag-chip {
+  text-transform: lowercase;
+  font-size: 11px;
+}
+
+/* ---- Filter divider (vertical rule between folder and diet chips) --------- */
+.filter-divider {
+  display: inline-block;
+  width: 1px;
+  height: 22px;
+  background: var(--rule);
+  margin: 0 var(--s-2);
+  align-self: center;
+}
+
+/* ---- Recipe card wrapper (to allow overlaid folder button) ---------------- */
+.recipe-card-wrap {
+  position: relative;
+}
+.recipe-card-folder-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 8px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--ink-soft);
+  z-index: 2;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.recipe-card-folder-btn:hover {
+  background: var(--paper-deep);
+  border-color: var(--ink-mute);
+  transform: scale(1.04);
+}
+.recipe-card-folder-btn.has-folders {
+  background: var(--paper-card);
+  border-color: var(--rust);
+  color: var(--rust);
+}
+.folder-btn-count {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--rust);
+  margin-left: 1px;
+}
+
+/* ---- Popover (used on cards and in modal) --------------------------------- */
+.folder-popover-anchor {
+  position: absolute;
+  top: 52px;
+  right: 10px;
+  z-index: 50;
+}
+.modal-folder-popover {
+  /* In the modal foot, the popover anchors above the button */
+  top: auto;
+  bottom: 48px;
+  right: 0;
+}
+.folder-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  /* invisible — just an outside-click catcher */
+}
+.folder-popover {
+  width: 260px;
+  background: var(--paper-card);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  box-shadow: var(--shadow-pop);
+  padding: var(--s-3);
+}
+.folder-popover-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--s-2);
+}
+.folder-popover-empty {
+  font-size: 12px;
+  color: var(--ink-mute);
+  padding: var(--s-3) var(--s-2);
+  text-align: center;
+}
+
+/* ---- Folder list (used in popover and dropdown) --------------------------- */
+.folder-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.folder-list-inline {
+  max-height: 280px;
+}
+.folder-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 7px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.folder-list-item:hover {
+  background: var(--paper-deep);
+}
+.folder-list-item input[type='checkbox'] {
+  accent-color: var(--rust);
+  flex-shrink: 0;
+}
+.folder-list-name {
+  font-size: 14px;
+  color: var(--ink);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- New folder input ----------------------------------------------------- */
+.folder-new-row {
+  display: flex;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+  align-items: center;
+}
+.folder-new-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  font-family: var(--body);
+}
+.folder-new-input:focus {
+  outline: none;
+  border-color: var(--ink-soft);
+}
+.folder-new-trigger {
+  margin-top: var(--s-2);
+  width: 100%;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px dashed var(--rule);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.1s, border-color 0.1s;
+}
+.folder-new-trigger:hover {
+  background: var(--paper-deep);
+  border-color: var(--ink-mute);
+  border-style: solid;
+}
+
+/* ---- Small button variant for popover/dropdown -------------------------- */
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+/* ---- Folder filter dropdown ---------------------------------------------- */
+.folder-dropdown-wrap {
+  position: relative;
+  display: inline-block;
+}
+.folder-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 280px;
+  background: var(--paper-card);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  box-shadow: var(--shadow-pop);
+  padding: var(--s-3);
+  z-index: 50;
+}
+.folder-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  text-align: left;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  transition: background 0.1s;
+}
+.folder-dropdown-item:hover { background: var(--paper-deep); }
+.folder-dropdown-item.on {
+  background: var(--paper-deep);
+  font-weight: 600;
+}
+.folder-dropdown-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.folder-dropdown-row .folder-dropdown-item {
+  flex: 1;
+}
+.folder-count {
+  font-size: 11px;
+  color: var(--ink-mute);
+  background: var(--paper);
+  padding: 2px 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.folder-row-action {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-mute);
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+}
+.folder-row-action:hover {
+  background: var(--paper-deep);
+  color: var(--ink);
+}
+.folder-row-action-danger:hover {
+  background: var(--rust);
+  color: var(--paper);
+}
+
+/* ---- Modal "Save to folder" button anchor -------------------------------- */
+.modal-folder-action {
+  position: relative;
+}
+
+/* ---- Responsive tweaks for narrow viewports (mobile-friendly base) ------- */
+@media (max-width: 640px) {
+  .recipe-card-folder-btn {
+    top: 8px;
+    right: 8px;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    font-size: 14px;
+  }
+  .folder-popover,
+  .folder-dropdown-panel {
+    width: 240px;
+  }
+  .folder-popover-anchor {
+    /* Push it leftward on narrow screens so it doesn't get clipped */
+    right: 0;
+    left: auto;
+  }
+  .filter-divider {
+    display: none;
+  }
+}
+/* ============================================================================
+   ADD RECIPE PAGE — appended for Phase 1.5 / Add Recipe
+   Paste at the end of app/globals.css.
+   ============================================================================ */
+
+/* ---- Mode tabs (use the existing diet-chip bar with a bit of breathing room) */
+.add-recipe-tabs {
+  margin-bottom: var(--s-5);
+}
+
+/* ---- Section wrapper inside each mode --------------------------------------- */
+.add-recipe-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  max-width: 880px;
+}
+
+.add-recipe-hint {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-top: var(--s-3);
+  padding: var(--s-3);
+  background: var(--paper-card);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+.add-recipe-hint summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--ink);
+}
+.add-recipe-hint ul {
+  margin: var(--s-2) 0 0 var(--s-3);
+  padding-left: var(--s-3);
+}
+.add-recipe-hint li { margin-bottom: 4px; }
+
+/* ---- URL input row ---------------------------------------------------------- */
+.url-input-row {
+  display: flex;
+  gap: var(--s-2);
+  align-items: stretch;
+}
+.url-input-row .recipe-search {
+  flex: 1;
+  margin: 0;
+}
+.url-input-row .btn {
+  white-space: nowrap;
+}
+
+/* ---- Form scaffolding ------------------------------------------------------- */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 120px 120px 120px;
+  gap: var(--s-3);
+}
+.form-section { margin-top: var(--s-4); }
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.form-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+}
+.form-input {
+  padding: 9px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper-card);
+  color: var(--ink);
+  font-size: 14px;
+  font-family: var(--body);
+  transition: border-color 0.15s, background 0.15s;
+}
+.form-input:focus {
+  outline: none;
+  border-color: var(--ink-soft);
+  background: var(--paper);
+}
+.form-input::placeholder { color: var(--ink-mute); }
+.form-textarea {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper-card);
+  color: var(--ink);
+  font-size: 14px;
+  font-family: var(--body);
+  resize: vertical;
+  min-height: 56px;
+}
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--ink-soft);
+  background: var(--paper);
+}
+.form-error {
+  padding: 10px 14px;
+  border-left: 3px solid var(--rust-deep);
+  background: rgba(166, 71, 31, 0.06);
+  color: var(--rust-deep);
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+/* ---- Ingredient row --------------------------------------------------------- */
+.ingredient-row {
+  display: grid;
+  grid-template-columns: 90px 180px 1fr 1fr 36px;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+  align-items: start;
+}
+.ingredient-amount,
+.ingredient-unit,
+.ingredient-prep { width: 100%; }
+.ingredient-unit { font-size: 13px; }
+
+/* ---- Autocomplete ----------------------------------------------------------- */
+.ingredient-autocomplete-wrap {
+  position: relative;
+}
+.autocomplete-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--paper-card);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  box-shadow: var(--shadow-pop);
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 30;
+}
+.autocomplete-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  text-align: left;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  transition: background 0.1s;
+}
+.autocomplete-item:hover {
+  background: var(--paper-deep);
+}
+.autocomplete-item .ing-note {
+  font-size: 11px;
+  color: var(--ink-mute);
+  text-transform: capitalize;
+}
+
+/* ---- Step input row --------------------------------------------------------- */
+.step-input-row {
+  display: flex;
+  gap: var(--s-2);
+  align-items: flex-start;
+  margin-bottom: var(--s-2);
+}
+.step-input-row .step-num {
+  flex-shrink: 0;
+  margin-top: 8px;
+}
+.step-input-row .form-textarea { flex: 1; }
+.step-input-row .folder-row-action {
+  margin-top: 8px;
+}
+
+/* ---- Recipe preview (final step of every mode) ----------------------------- */
+.recipe-preview {
+  max-width: 880px;
+  background: var(--paper-card);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: var(--s-5);
+}
+.recipe-preview-head {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: var(--s-3);
+  margin-bottom: var(--s-3);
+}
+
+/* ---- Responsive ------------------------------------------------------------- */
+@media (max-width: 720px) {
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .form-grid .form-field:first-child {
+    grid-column: 1 / -1;
+  }
+  .ingredient-row {
+    grid-template-columns: 80px 1fr 36px;
+    grid-template-areas:
+      "amt unit del"
+      "ing ing ing"
+      "prep prep prep";
+    row-gap: var(--s-2);
+  }
+  .ingredient-amount { grid-area: amt; }
+  .ingredient-unit { grid-area: unit; }
+  .ingredient-autocomplete-wrap { grid-area: ing; }
+  .ingredient-prep { grid-area: prep; }
+  .ingredient-row > button:last-child { grid-area: del; }
+  .url-input-row {
+    flex-direction: column;
+  }
+}
+/* ============================================================================
+   CUSTOM INGREDIENTS — appended for the custom-ingredients round
+   Paste at the end of app/globals.css.
+   ============================================================================ */
+
+/* ---- "custom" tag shown next to user-created ingredient names -------------- */
+.custom-ing-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--rust);
+  background: rgba(166, 71, 31, 0.08);
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
+/* ---- "+ Create new" row in the ingredient autocomplete --------------------- */
+.autocomplete-create {
+  border-top: 1px solid var(--rule);
+  margin-top: 2px;
+  padding-top: 10px;
+}
+.autocomplete-create .ing-name {
+  color: var(--rust);
+  font-weight: 600;
+}
+
+/* ---- Inline "new ingredient" form (replaces an ingredient row) ------------- */
+.new-ingredient-form {
+  border: 1px solid var(--rust);
+  border-radius: 10px;
+  background: var(--paper-card);
+  padding: var(--s-3);
+  margin-bottom: var(--s-2);
+}
+.new-ingredient-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--s-3);
+}
+.new-ingredient-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: var(--s-2);
+}
+.new-ingredient-wide {
+  grid-column: 1 / -1;
+}
+.new-ingredient-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+@media (max-width: 720px) {
+  .new-ingredient-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .new-ingredient-grid .form-field:first-child {
+    grid-column: 1 / -1;
+  }
+}
+/* ============================================================================
+   PREFERENCES PAGE — appended for the Preferences round
+   Paste at the end of app/globals.css.
+   ============================================================================ */
+
+/* ---- Section heading ------------------------------------------------------- */
+.pref-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--s-2);
+}
+.pref-section-title {
+  font-family: var(--display);
+  font-size: 22px;
+  margin: 0;
+  color: var(--ink);
+}
+.pref-section-sub {
+  color: var(--ink-soft);
+  font-size: 13px;
+  margin-bottom: var(--s-4);
+  max-width: 620px;
+}
+.pref-tag {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-mute);
+  font-weight: 600;
+}
+.pref-tag-strict {
+  color: var(--rust-deep);
+}
+.pref-excluding {
+  margin-top: var(--s-4);
+  font-size: 13px;
+  color: var(--rust-deep);
+  font-weight: 600;
+}
+.pref-empty {
+  color: var(--ink-mute);
+  font-style: italic;
+  font-family: var(--display);
+  text-align: center;
+  padding: var(--s-4) 0;
+}
+
+/* ---- Package overrides ----------------------------------------------------- */
+.override-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--s-3);
+}
+.override-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 8px 12px;
+  background: var(--paper-deep);
+  border-radius: 8px;
+}
+.override-name {
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 14px;
+  flex: 1;
+}
+.override-value {
+  font-size: 13px;
+  color: var(--ink-soft);
+  background: var(--paper);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+/* ---- Override editor ------------------------------------------------------- */
+.override-editor {
+  margin-top: var(--s-3);
+  border: 1px solid var(--rust);
+  border-radius: 10px;
+  background: var(--paper-card);
+  padding: var(--s-3);
+}
+.override-editor-name {
+  font-family: var(--display);
+  font-size: 17px;
+  color: var(--ink);
+  margin-bottom: var(--s-3);
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+.override-default-hint {
+  font-family: var(--body);
+  font-size: 12px;
+  color: var(--ink-mute);
+  font-style: italic;
+}
+.override-editor-fields {
+  display: grid;
+  grid-template-columns: 120px 1fr 1.4fr;
+  gap: var(--s-2);
+}
+.override-editor-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+@media (max-width: 640px) {
+  .override-editor-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+  .override-label-field {
+    grid-column: 1 / -1;
+  }
+}
+/* ============================================================================
+   GROCERY PAGE — appended for the Grocery round
+   Paste at the end of app/globals.css.
+   ============================================================================ */
+
+/* Action button column inside the grocery summary bar */
+.grocery-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  justify-content: center;
+}
+.grocery-actions .btn {
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .grocery-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+/* ============================================================================
+   MANAGE CUSTOM INGREDIENTS — appended for the polish round
+   Paste at the end of app/globals.css.
+   ============================================================================ */
+
+.manage-ing-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.manage-ing-row:last-child {
+  border-bottom: none;
+}
+.manage-ing-body {
+  flex: 1;
+  min-width: 0;
+}
+.manage-ing-usage {
+  color: var(--rust);
+  font-weight: 600;
 }

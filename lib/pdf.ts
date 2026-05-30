@@ -1,4 +1,4 @@
-import type { Aisle, Diet, GroceryList, PlannedMeal, Recipe } from './types'
+import type { Aisle, Diet, GroceryList, Ingredient, PlannedMeal, Recipe } from './types'
 import { INGREDIENTS } from './data/ingredients'
 import { DAY_LABELS, DIET_LABELS } from './planner'
 import { formatAmount } from './units'
@@ -19,10 +19,17 @@ export interface PdfPlanContext {
   groceryList: GroceryList
   diet: Diet
   servings: number
+  /**
+   * Ingredient catalog for resolving names. Defaults to the static base
+   * catalog; pass a merged per-user catalog (loadCatalog) so custom
+   * ingredients render with their real names instead of "user:<uuid>".
+   */
+  catalog?: Record<string, Ingredient>
 }
 
 export function buildWeeklyPlanHtml(ctx: PdfPlanContext): string {
   const recipeById = new Map(ctx.recipes.map(r => [r.id, r]))
+  const catalog = ctx.catalog ?? INGREDIENTS
   const dateStr = new Date().toLocaleDateString(undefined, {
     month: 'short', day: 'numeric', year: 'numeric'
   })
@@ -38,7 +45,7 @@ export function buildWeeklyPlanHtml(ctx: PdfPlanContext): string {
 <body>
 ${renderHeader(ctx, dateStr)}
 <div class="recipes-flow">
-  ${ctx.plan.map((meal, i) => renderRecipe(meal, recipeById.get(meal.recipeId), i + 1)).join('')}
+  ${ctx.plan.map((meal, i) => renderRecipe(meal, recipeById.get(meal.recipeId), i + 1, catalog)).join('')}
 </div>
 ${renderGroceryList(ctx.groceryList)}
 </body>
@@ -64,7 +71,7 @@ function renderHeader(ctx: PdfPlanContext, dateStr: string): string {
 }
 
 // ---- RECIPE BLOCK (multiple flow per page) ---------------------------------
-function renderRecipe(meal: PlannedMeal, recipe: Recipe | undefined, num: number): string {
+function renderRecipe(meal: PlannedMeal, recipe: Recipe | undefined, num: number, catalog: Record<string, Ingredient>): string {
   if (!recipe) return ''
   const totalMin = recipe.prepMinutes + recipe.cookMinutes
   return /* html */ `
@@ -77,7 +84,7 @@ function renderRecipe(meal: PlannedMeal, recipe: Recipe | undefined, num: number
   <div class="recipe-body">
     <ul class="r-ing">
       ${recipe.ingredients.map(ri => {
-        const ing = INGREDIENTS[ri.ingredientId]
+        const ing = catalog[ri.ingredientId]
         const scaled = ri.amount * (meal.servings / recipe.servings)
         return `<li><span class="iamt">${escapeHtml(formatAmount(scaled, ri.unit))}</span> ${escapeHtml(ing?.name ?? ri.ingredientId)}${ri.prepNote ? `<span class="ipn"> — ${escapeHtml(ri.prepNote)}</span>` : ''}</li>`
       }).join('')}

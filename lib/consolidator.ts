@@ -2,13 +2,14 @@ import type {
   Aisle,
   GroceryLineItem,
   GroceryList,
+  Ingredient,
   PantryItem,
   PlannedMeal,
   PriceEntry,
   Recipe
 } from './types'
 import { INGREDIENTS } from './data/ingredients'
-import { convert, unitsCompatible } from './units'
+import { convert, convertWithDensity, unitsCompatible } from './units'
 
 // =============================================================================
 // THE CONSOLIDATOR — waste-minimization brain.
@@ -26,6 +27,12 @@ import { convert, unitsCompatible } from './units'
 export interface ConsolidatorOptions {
   pantry?: PantryItem[]
   prices?: Record<string, PriceEntry>
+  /**
+   * The ingredient catalog to use. Defaults to the static base catalog.
+   * Pass a merged per-user catalog (loadCatalog) to support custom
+   * ingredients and per-user package overrides.
+   */
+  catalog?: Record<string, Ingredient>
 }
 
 export function buildGroceryList(
@@ -36,6 +43,7 @@ export function buildGroceryList(
   const recipeById = new Map(recipes.map(r => [r.id, r]))
   const pantry = options.pantry ?? []
   const prices = options.prices ?? {}
+  const catalog = options.catalog ?? INGREDIENTS
 
   // Step 1: accumulate raw ingredient demands across the plan.
   // Key by ingredientId; store amount in the ingredient's PACKAGE unit
@@ -52,7 +60,7 @@ export function buildGroceryList(
     const scale = meal.servings / recipe.servings
 
     for (const ri of recipe.ingredients) {
-      const ing = INGREDIENTS[ri.ingredientId]
+      const ing = catalog[ri.ingredientId]
       if (!ing) {
         console.warn(`Unknown ingredient: ${ri.ingredientId}`)
         continue
@@ -62,12 +70,19 @@ export function buildGroceryList(
       if (unitsCompatible(ri.unit, ing.packageUnit)) {
         amountInPkgUnit = convert(ri.amount * scale, ri.unit, ing.packageUnit)
       } else {
-        // Unit mismatch - typically volume vs weight (e.g. tsp salt vs oz salt)
-        // For spices and condiments these are pantry staples a user almost
-        // certainly already has — flag for pantry rather than triggering a buy.
-        // We'll still record the demand so the line item shows what's needed,
-        // but rounded down to a "trace" amount that won't trigger buying.
-        if (ing.aisle === 'spices' || ing.aisle === 'condiments') {
+        // Different unit families. Try density-aware conversion (e.g. cup of
+        // flour → grams via density 0.53 → lb). Falls back to the spice/condiment
+        // stub for ingredients without density (those are pantry staples the
+        // user almost certainly already has).
+        const bridged = convertWithDensity(
+          ri.amount * scale,
+          ri.unit,
+          ing.packageUnit,
+          ing.density
+        )
+        if (bridged !== null) {
+          amountInPkgUnit = bridged
+        } else if (ing.aisle === 'spices' || ing.aisle === 'condiments') {
           // Effectively zero — assumed to be on hand
           amountInPkgUnit = 0
         } else {
@@ -91,11 +106,21 @@ export function buildGroceryList(
   // Step 2: subtract pantry stock.
   for (const item of pantry) {
     const demand = demands.get(item.ingredientId)
-    const ing = INGREDIENTS[item.ingredientId]
+    const ing = catalog[item.ingredientId]
     if (!demand || !ing) continue
     let stockInPkgUnit = 0
     if (unitsCompatible(item.unit, ing.packageUnit)) {
       stockInPkgUnit = convert(item.amount, item.unit, ing.packageUnit)
+    } else {
+      // Same density bridge as above. If we can't bridge, leave stock at 0
+      // so we don't incorrectly mark the demand as satisfied.
+      const bridged = convertWithDensity(
+        item.amount,
+        item.unit,
+        ing.packageUnit,
+        ing.density
+      )
+      if (bridged !== null) stockInPkgUnit = bridged
     }
     demand.amountInPackageUnit = Math.max(
       0,
@@ -107,7 +132,7 @@ export function buildGroceryList(
   // Step 3: round to whole packages and compute leftover.
   const lineItems: GroceryLineItem[] = []
   for (const [ingId, demand] of demands) {
-    const ing = INGREDIENTS[ingId]!
+    const ing = catalog[ingId]!
     const needed = demand.amountInPackageUnit
     if (needed <= 0) continue   // skip phantom or fully-pantry-covered items
     const packages = Math.ceil(needed / ing.packageSize)
