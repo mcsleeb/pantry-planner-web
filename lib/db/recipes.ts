@@ -22,6 +22,7 @@ interface RecipeRow {
   source_external_id: string | null
   source_url: string | null
   estimated_cost_per_serving: number | null
+  suitable_meals: string[] | null
   visibility: 'private' | 'public' | 'system'
 }
 
@@ -38,6 +39,9 @@ function rowToRecipe(row: RecipeRow): Recipe {
     tags: row.tags ?? undefined,
     proteinTag: (row.protein_tag ?? undefined) as any,
     estimatedCostPerServing: row.estimated_cost_per_serving ?? undefined,
+    suitableMeals: (row.suitable_meals && row.suitable_meals.length > 0
+      ? row.suitable_meals
+      : ['dinner']) as Recipe['suitableMeals'],
     isCustom: row.visibility !== 'system',
     source: row.source_provider
       ? {
@@ -101,6 +105,7 @@ export async function createRecipe(
         ? String(recipe.source.externalId)
         : null,
       source_url: recipe.source?.sourceUrl ?? null,
+      suitable_meals: recipe.suitableMeals ?? ['dinner'],
       visibility: 'private'
     })
     .select()

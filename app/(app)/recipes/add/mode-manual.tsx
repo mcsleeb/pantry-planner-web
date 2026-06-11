@@ -11,6 +11,7 @@ import type {
   Allergen,
   Diet,
   Ingredient,
+  MealSlot,
   Recipe,
   RecipeIngredient,
   Unit
@@ -27,6 +28,13 @@ const ALL_DIETS: Diet[] = [
   'mediterranean',
   'gluten-free'
 ]
+
+const ALL_MEALS: MealSlot[] = ['breakfast', 'lunch', 'dinner']
+const MEAL_LABELS: Record<MealSlot, string> = {
+  breakfast: 'Breakfast',
+  lunch: 'Lunch',
+  dinner: 'Dinner'
+}
 
 const ALL_AISLES: Aisle[] = [
   'produce', 'meat', 'seafood', 'dairy', 'pantry',
@@ -48,6 +56,7 @@ export function ModeManual() {
   const [prepMin, setPrepMin] = useState(10)
   const [cookMin, setCookMin] = useState(20)
   const [diets, setDiets] = useState<Set<Diet>>(new Set(['omnivore']))
+  const [meals, setMeals] = useState<Set<MealSlot>>(new Set(['dinner']))
   const [tags, setTags] = useState<string>('')
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>([])
   const [steps, setSteps] = useState<string[]>([''])
@@ -77,6 +86,17 @@ export function ModeManual() {
       if (next.has(d)) next.delete(d)
       else next.add(d)
       if (next.size === 0) next.add('omnivore')
+      return next
+    })
+  }
+
+  const toggleMeal = (m: MealSlot) => {
+    setMeals(prev => {
+      const next = new Set(prev)
+      if (next.has(m)) next.delete(m)
+      else next.add(m)
+      // Always keep at least one meal slot
+      if (next.size === 0) next.add('dinner')
       return next
     })
   }
@@ -130,6 +150,7 @@ export function ModeManual() {
       ingredients,
       steps: cleanSteps,
       tags: cleanTags.length > 0 ? cleanTags : undefined,
+      suitableMeals: Array.from(meals),
       isCustom: true
     }
     setPreview(recipe)
@@ -201,6 +222,22 @@ export function ModeManual() {
               onClick={() => toggleDiet(d)}
             >
               {DIET_LABELS[d]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="form-section">
+        <div className="form-label">Suitable for which meal?</div>
+        <div className="diet-filter-bar" style={{ marginBottom: 0 }}>
+          {ALL_MEALS.map(m => (
+            <button
+              key={m}
+              type="button"
+              className={`diet-chip ${meals.has(m) ? 'on' : ''}`}
+              onClick={() => toggleMeal(m)}
+            >
+              {MEAL_LABELS[m]}
             </button>
           ))}
         </div>

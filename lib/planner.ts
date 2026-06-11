@@ -11,6 +11,17 @@ export function recipesForDiet(recipes: Recipe[], diet: Diet): Recipe[] {
   return recipes.filter(r => r.diets.includes(diet))
 }
 
+/**
+ * Does this recipe suit the given meal slot? Recipes from before the
+ * suitableMeals field existed are treated as dinner-only.
+ */
+export function recipeSupportsMeal(recipe: Recipe, slot: MealSlot): boolean {
+  const meals = recipe.suitableMeals && recipe.suitableMeals.length > 0
+    ? recipe.suitableMeals
+    : (['dinner'] as MealSlot[])
+  return meals.includes(slot)
+}
+
 export interface GenerateOptions {
   pantry?: PantryItem[]
   /** Additional weight given to recipes that use these ingredient ids */
@@ -23,9 +34,17 @@ export interface GenerateOptions {
   excludeAllergens?: Allergen[]
 }
 
-// Generate a week of dinners with variety + pantry-aware scoring:
+// Generate a week of meals with variety + pantry-aware scoring.
+//
+// Now meal-aware: pass the enabled meal slots (default: dinner only, for
+// back-compat with older callers). The function loops over each enabled meal
+// and runs the same scoring pipeline per slot, with variety constraints
+// scoped to that slot (so repeating oatmeal twice at breakfast doesn't
+// suppress repeating it at lunch).
+//
+// Scoring within a slot:
 //   - Don't repeat the same protein on consecutive days
-//   - Don't repeat the exact same recipe within the week
+//   - Don't repeat the exact same recipe within the slot's week
 //   - Reward recipes that share ingredients with already-picked recipes (overlap)
 //   - Reward recipes that USE ingredients already in the pantry
 //   - Heavily reward recipes that use "use up" ingredients
@@ -33,34 +52,71 @@ export function generateWeek(
   recipes: Recipe[],
   diet: Diet,
   servings: number,
-  slot: MealSlot = 'dinner',
+  slot: MealSlot | MealSlot[] = 'dinner',
   options: GenerateOptions = {}
 ): PlannedMeal[] {
-  // Filter recipes by diet AND by exclusions before any scoring.
-  // Exclusions are hard filters — there's no "score down a sweet potato recipe",
-  // it's either acceptable or it isn't.
+  const slots: MealSlot[] = Array.isArray(slot) ? slot : [slot]
+  if (slots.length === 0) return []
+
+  // Pre-filter once: diet match + exclusions. Per-slot suitability is checked
+  // inside the loop so an unsuitable-for-breakfast recipe can still be
+  // suitable for dinner.
   const dietMatches = recipesForDiet(recipes, diet)
-  const candidates = dietMatches.filter(r => !checkExclusions(r, {
+  const baseCandidates = dietMatches.filter(r => !checkExclusions(r, {
     dislikes: options.excludeIngredients,
     allergens: options.excludeAllergens
   }).excluded)
-  if (candidates.length === 0) return []
+  if (baseCandidates.length === 0) return []
 
+  // Pantry / use-up tracking is shared across slots — a use-up item consumed
+  // by breakfast shouldn't keep pulling dinner toward it.
   const pantryIds = new Set((options.pantry ?? []).map(p => p.ingredientId))
   const useUpIds = new Set(options.useUpIds ?? [])
-  // Default weights — tuned from light testing.
-  // Pantry: noticeable but not overwhelming (the user still wants variety)
-  // Use-up: heavy enough that flagged items dominate selection for the first
-  //   few days of the week, then peters out as those ingredients get consumed.
   const pantryWeight = options.pantryWeight ?? 0.6
   const useUpWeight = 4.0
+  const consumedUseUp = new Set<string>()
 
+  const fullPlan: PlannedMeal[] = []
+  for (const currentSlot of slots) {
+    const candidates = baseCandidates.filter(r =>
+      recipeSupportsMeal(r, currentSlot)
+    )
+    if (candidates.length === 0) continue
+
+    const slotPlan = generateForSlot(
+      candidates,
+      currentSlot,
+      servings,
+      pantryIds,
+      useUpIds,
+      consumedUseUp,
+      pantryWeight,
+      useUpWeight,
+      recipes
+    )
+    fullPlan.push(...slotPlan)
+  }
+  return fullPlan
+}
+
+/**
+ * Per-slot week generator. Returns 7 PlannedMeals for the given slot type,
+ * with variety constraints scoped to this slot only.
+ */
+function generateForSlot(
+  candidates: Recipe[],
+  currentSlot: MealSlot,
+  servings: number,
+  pantryIds: Set<string>,
+  useUpIds: Set<string>,
+  consumedUseUp: Set<string>,
+  pantryWeight: number,
+  useUpWeight: number,
+  allRecipes: Recipe[]
+): PlannedMeal[] {
   const plan: PlannedMeal[] = []
   const used = new Set<string>()
   const recentProteins: string[] = []
-  // Track which use-up items have been "consumed" by the plan so we don't
-  // pile every use-up item into Monday alone.
-  const consumedUseUp = new Set<string>()
 
   for (const day of DAYS) {
     const exhausted = used.size >= candidates.length
@@ -75,14 +131,17 @@ export function generateWeek(
       .map(r => {
         let score = Math.random() * 0.5 // tiebreak randomness
 
-        // Avoid same-protein streaks
+        // Avoid same-protein streaks (per-slot only — breakfast eggs every
+        // day is normal even if dinner has eggs too)
         if (r.proteinTag) {
           if (recentProteins[recentProteins.length - 1] === r.proteinTag) score += 10
           if (recentProteins[recentProteins.length - 2] === r.proteinTag) score += 3
         }
 
-        // Reward overlap with already-picked recipes (smaller grocery list)
-        const overlap = countIngredientOverlap(r, plan, recipes)
+        // Reward overlap with already-picked recipes (smaller grocery list).
+        // Computed against the cross-slot accumulated plan so we benefit
+        // from picking dinners that share ingredients with this slot's picks.
+        const overlap = countIngredientOverlap(r, plan, allRecipes)
         score -= overlap * 0.3
 
         // Reward use of pantry items
@@ -103,8 +162,6 @@ export function generateWeek(
     const pick = best?.r ?? candidates[Math.floor(Math.random() * candidates.length)]!
     if (!exhausted) used.add(pick.id)
 
-    // Mark this pick's use-up items as consumed so subsequent days don't
-    // double-count them (the ingredient is already "spoken for").
     if (best && best.useUpHits > 0) {
       for (const ri of pick.ingredients) {
         if (useUpIds.has(ri.ingredientId)) consumedUseUp.add(ri.ingredientId)
@@ -113,7 +170,7 @@ export function generateWeek(
 
     plan.push({
       day,
-      slot,
+      slot: currentSlot,
       recipeId: pick.id,
       servings
     })

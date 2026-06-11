@@ -119,6 +119,11 @@ export interface Recipe {
   // Used for variety constraints: don't pick two beef dishes in a row
   proteinTag?: 'beef' | 'chicken' | 'pork' | 'fish' | 'tofu' | 'beans' | 'eggs' | 'none'
   tags?: string[]          // freeform: "quick", "comfort", "summer"
+  /**
+   * Which meal slot(s) this recipe is suitable for. Defaults to ['dinner']
+   * when missing (older recipes from before this field existed).
+   */
+  suitableMeals?: MealSlot[]
   // Optional price-per-serving estimate (cents) — populated by the price API
   estimatedCostPerServing?: number
   // True if user added this recipe; helps separate seed data from user content

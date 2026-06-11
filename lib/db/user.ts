@@ -1,6 +1,6 @@
 // Per-user data: pantry, preferences, profile.
 
-import type { Allergen, Diet, PantryItem, Unit } from '../types'
+import type { Allergen, Diet, MealSlot, PantryItem, Unit } from '../types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 // =============================================================================
@@ -173,5 +173,47 @@ export async function setAllergens(
   const { error } = await supabase
     .from('allergens')
     .insert(allergens.map(a => ({ user_id: userId, allergen: a })))
+  return !error
+}
+
+// =============================================================================
+//  ENABLED MEALS — which meal slots the user wants planned
+// =============================================================================
+
+/**
+ * Read the user's enabled meal slots. Falls back to all three (which is also
+ * the DB default for newly-created rows post-migration).
+ */
+export async function getEnabledMeals(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<MealSlot[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('enabled_meals')
+    .eq('id', userId)
+    .single()
+  if (error || !data?.enabled_meals) {
+    if (error) console.error('getEnabledMeals failed:', error)
+    return ['breakfast', 'lunch', 'dinner']
+  }
+  return data.enabled_meals as MealSlot[]
+}
+
+/**
+ * Write the user's enabled meal slots. At least one slot must remain enabled
+ * (we don't allow an empty plan).
+ */
+export async function setEnabledMeals(
+  supabase: SupabaseClient,
+  userId: string,
+  meals: MealSlot[]
+): Promise<boolean> {
+  const cleaned = meals.length === 0 ? (['dinner'] as MealSlot[]) : meals
+  const { error } = await supabase
+    .from('profiles')
+    .update({ enabled_meals: cleaned })
+    .eq('id', userId)
+  if (error) console.error('setEnabledMeals failed:', error)
   return !error
 }

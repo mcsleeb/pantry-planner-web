@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import {
   addDislike,
   removeDislike,
-  setAllergens as saveAllergens
+  setAllergens as saveAllergens,
+  setEnabledMeals as saveEnabledMeals
 } from '@/lib/db/user'
 import {
   setPackageOverride,
@@ -18,16 +19,24 @@ import {
   ALLERGEN_LABELS,
   type Allergen,
   type Ingredient,
+  type MealSlot,
   type Unit
 } from '@/lib/types'
 
 const ALL_ALLERGENS: Allergen[] = [
   'peanut', 'tree-nut', 'shellfish', 'fish', 'dairy', 'egg', 'gluten', 'soy', 'sesame'
 ]
+const ALL_MEALS: MealSlot[] = ['breakfast', 'lunch', 'dinner']
+const MEAL_LABELS: Record<MealSlot, string> = {
+  breakfast: 'Breakfast',
+  lunch: 'Lunch',
+  dinner: 'Dinner'
+}
 
 interface Props {
   dislikes: string[]
   allergens: Allergen[]
+  enabledMeals: MealSlot[]
   overrides: PackageOverride[]
   catalog: Record<string, Ingredient>
 }
@@ -35,6 +44,7 @@ interface Props {
 export function PreferencesClient({
   dislikes: initialDislikes,
   allergens: initialAllergens,
+  enabledMeals: initialEnabledMeals,
   overrides: initialOverrides,
   catalog
 }: Props) {
@@ -44,6 +54,7 @@ export function PreferencesClient({
   // Local state mirrors the server data; every change persists + router.refresh()
   const [dislikes, setDislikes] = useState<string[]>(initialDislikes)
   const [allergens, setAllergensState] = useState<Allergen[]>(initialAllergens)
+  const [enabledMeals, setEnabledMealsState] = useState<MealSlot[]>(initialEnabledMeals)
   const [overrides, setOverrides] = useState<PackageOverride[]>(initialOverrides)
 
   const catalogEntries = useMemo(
@@ -70,6 +81,26 @@ export function PreferencesClient({
       } else {
         router.refresh()
       }
+    })
+  }
+
+  // -------------------------------------------------------------------------
+  // ENABLED MEALS
+  // -------------------------------------------------------------------------
+  const toggleMeal = (m: MealSlot) => {
+    const next = enabledMeals.includes(m)
+      ? enabledMeals.filter(x => x !== m)
+      : [...enabledMeals, m]
+    // Don't let the user disable every meal — keep at least dinner.
+    if (next.length === 0) return
+    setEnabledMealsState(next)
+    startTransition(async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const ok = await saveEnabledMeals(supabase, user.id, next)
+      if (!ok) setEnabledMealsState(enabledMeals)
+      else router.refresh()
     })
   }
 
@@ -178,8 +209,37 @@ export function PreferencesClient({
         </div>
       </div>
 
+      {/* ===================== ENABLED MEALS ===================== */}
+      <section className="card">
+        <div className="pref-section-head">
+          <h3 className="pref-section-title">Plan these meals</h3>
+          <span className="pref-tag">Schedule</span>
+        </div>
+        <p className="pref-section-sub">
+          Which meals do you want the planner to fill? Turning a meal off
+          hides its row on the Plan page and skips it when generating a week.
+        </p>
+        <div className="diet-filter-bar" style={{ marginBottom: 0 }}>
+          {ALL_MEALS.map(m => (
+            <button
+              key={m}
+              className={`diet-chip ${enabledMeals.includes(m) ? 'on' : ''}`}
+              onClick={() => toggleMeal(m)}
+              aria-pressed={enabledMeals.includes(m)}
+            >
+              {MEAL_LABELS[m]}
+            </button>
+          ))}
+        </div>
+        {enabledMeals.length === 1 && (
+          <p className="hero-sub" style={{ fontSize: '12px', marginTop: 'var(--s-3)' }}>
+            At least one meal must stay enabled.
+          </p>
+        )}
+      </section>
+
       {/* ===================== ALLERGENS ===================== */}
-      <section className="card allergen-card">
+      <section className="card allergen-card" style={{ marginTop: 'var(--s-5)' }}>
         <div className="pref-section-head">
           <h3 className="pref-section-title">⚠ Allergens</h3>
           <span className="pref-tag pref-tag-strict">Strict</span>
